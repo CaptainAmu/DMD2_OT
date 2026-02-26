@@ -1,0 +1,1 @@
+[distill] checkpoints will be saved to: /slurm-storage/shucli/PROJECT_FOLDER/DMD2_OT/cifar10_distill_runs/distill_cifar10

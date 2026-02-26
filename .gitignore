@@ -4,6 +4,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Model checkpoints
+model_checkpoints/
+
 # C extensions
 *.so
 
