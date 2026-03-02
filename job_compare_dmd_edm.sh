@@ -23,11 +23,26 @@ EDM_CKPT=model_checkpoints/edm-imagenet-64x64-cond-adm.pkl
 # ---- Control S_churn here ----
 S_CHURN=0
 
+# ---- Control master seed here ----
+# Set to an integer (e.g. 42) for a fixed seed,
+# or set to the string "random" to use a fresh random seed each run.
+MASTER_SEED=421
+
+
+
+
+if [ "$MASTER_SEED" = "random" ]; then
+    # Combine two $RANDOM draws to get a larger range.
+    MASTER_SEED=$(( RANDOM * 32768 + RANDOM ))
+fi
+
+echo "Using master seed: $MASTER_SEED"
+
 srun -u $PYTHON -u demo/compare_dmd_edm.py \
     --dmd_checkpoint $DMD_CKPT \
     --edm_checkpoint $EDM_CKPT \
     --output_dir ./comparison_output \
-    --num_images 30 \
+    --num_images 60 \
     --edm_steps 256 \
-    --master_seed 42 \
+    --master_seed $MASTER_SEED \
     --S_churn $S_CHURN

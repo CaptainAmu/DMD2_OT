@@ -413,7 +413,7 @@ def train(args):
                     step=global_step,
                 )
 
-            # Save student_latest.pt every 50 steps so you always have a .pt (even if job stops mid-epoch).
+            # Every 50 steps: save checkpoint + 10-class sample grid (same block so we never skip images).
             if global_step % 50 == 0:
                 latest_path = os.path.join(args.output_dir, "student_latest.pt")
                 torch.save(
@@ -427,8 +427,22 @@ def train(args):
                 )
                 sys.stderr.write(f"[distill] step {global_step}: saved {os.path.abspath(latest_path)}\n")
                 sys.stderr.flush()
+                # 10 images, one per CIFAR-10 class — save to step_samples/ so you can view them
+                with torch.no_grad():
+                    z_vis = torch.randn(NUM_CLASSES, IMG_CH, IMG_RES, IMG_RES, device=device)
+                    one_hot_vis = torch.zeros(NUM_CLASSES, NUM_CLASSES, device=device)
+                    one_hot_vis.scatter_(1, torch.arange(NUM_CLASSES, device=device).unsqueeze(1), 1.0)
+                    x_vis = one_step_generate(generator, z_vis, one_hot_vis, sigma=SIGMA_MAX)
+                    imgs_vis = ((x_vis + 1.0) * 127.5).clamp(0, 255).to(torch.uint8)
+                grid_vis = make_image_grid(imgs_vis, grid_size=5)
+                vis_dir = os.path.join(args.output_dir, "step_samples")
+                os.makedirs(vis_dir, exist_ok=True)
+                grid_path = os.path.join(vis_dir, f"step_{global_step:06d}_grid.png")
+                Image.fromarray(grid_vis).save(grid_path)
+                sys.stderr.write(f"[distill] step {global_step}: saved 10-class grid {os.path.abspath(grid_path)}\n")
+                sys.stderr.flush()
 
-        # Every log_interval_steps: FID (fid_num_samples_step), gradient norm, student loss, sample grid.
+        # Every log_interval_steps: FID (fid_num_samples_step), gradient norm, student loss, wandb grid.
         if global_step % args.log_interval_steps == 0:
             if inception is not None and args.fid_ref_path is not None:
                 generator.eval()

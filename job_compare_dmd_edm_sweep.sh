@@ -31,7 +31,7 @@ for S_CHURN in 0 1 5 10 40; do
         --output_dir "$OUTPUT_DIR" \
         --num_images 30 \
         --edm_steps 256 \
-        --master_seed 42 \
+        --master_seed 421 \
         --S_churn $S_CHURN
     echo "========== Done S_churn = ${S_CHURN} =========="
 done

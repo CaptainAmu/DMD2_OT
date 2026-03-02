@@ -6,6 +6,7 @@ __pycache__/
 
 # Model checkpoints
 model_checkpoints/
+cifar10_distill_runs/
 
 # C extensions
 *.so
