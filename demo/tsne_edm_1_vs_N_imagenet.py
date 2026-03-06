@@ -8,7 +8,9 @@ import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
 
 from demo.compare_dmd_edm import (
+    create_dmd_generator,
     load_edm_teacher,
+    sample_dmd,
     sample_edm_with_trajectory,
     load_imagenet_labels,
     RESOLUTION,
@@ -80,8 +82,9 @@ def compute_resnet_features_batched(
 
 
 @torch.no_grad()
-def generate_edm_1_vs_N(
+def generate_edm_1_vs_N_vs_DMD(
     edm_checkpoint: str,
+    dmd_checkpoint: str,
     class_index: int,
     num_seeds: int,
     master_seed: int,
@@ -89,27 +92,46 @@ def generate_edm_1_vs_N(
     device: torch.device,
     edm1_dir: str = None,
     edmN_dir: str = None,
+    dmd_dir: str = None,
 ):
     """
-    For a single ImageNet class, generate pairs of EDM images:
-      - x_1: EDM 1-step sampling (num_steps=1, one big step from noise to E[x0|x_t])
-      - x_N: EDM N-step Heun sampling (full trajectory)
-    Both use the same noise seed and class label.
+    For a single ImageNet class, generate EDM 1-step, EDM N-step, and DMD images.
+    All three use the same noise seed and class label.
     Returns:
-      imgs_1_chw, imgs_N_chw: [num_seeds, 3, H, W] floats in [0,1]
+      imgs_1_chw, imgs_N_chw, imgs_dmd_chw: [num_seeds, 3, H, W] floats in [0,1]
     """
     from PIL import Image
-
-    print("Loading EDM teacher...")
-    edm_net = load_edm_teacher(edm_checkpoint, device)
 
     rng = np.random.RandomState(master_seed)
     seeds = rng.randint(0, 2**31, size=num_seeds).tolist()
 
+    # DMD first (student 1-step)
+    print("Loading DMD student...")
+    dmd_gen = create_dmd_generator(dmd_checkpoint, device)
+    imgs_dmd = []
+    for i in range(num_seeds):
+        if (i + 1) % 20 == 0 or i == 0:
+            print(f"  DMD [{i+1}/{num_seeds}]")
+        torch.manual_seed(seeds[i])
+        noise = torch.randn(1, 3, RESOLUTION, RESOLUTION, device=device)
+        one_hot = torch.zeros(1, LABEL_DIM, device=device)
+        one_hot[0, class_index] = 1.0
+        dmd_img_uint8 = sample_dmd(dmd_gen, noise, one_hot, device)
+        dmd_img = dmd_img_uint8[0].to(torch.float32) / 255.0
+        imgs_dmd.append(dmd_img)
+        if dmd_dir is not None:
+            img_np = (dmd_img.clamp(0, 1) * 255).permute(1, 2, 0).cpu().numpy().astype(np.uint8)
+            Image.fromarray(img_np, mode="RGB").save(os.path.join(dmd_dir, f"dmd_{i:04d}.png"))
+    del dmd_gen
+    torch.cuda.empty_cache()
+
+    # EDM teacher
+    print("Loading EDM teacher...")
+    edm_net = load_edm_teacher(edm_checkpoint, device)
+
     imgs_1 = []
     imgs_N = []
-
-    print(f"Generating EDM 1-step vs {steps_N}-step (same noise), {num_seeds} seeds...")
+    print(f"Generating EDM 1-step, EDM {steps_N}-step (same noise), {num_seeds} seeds...")
     for i in range(num_seeds):
         if (i + 1) % 20 == 0 or i == 0:
             print(f"  [{i+1}/{num_seeds}]")
@@ -149,14 +171,16 @@ def generate_edm_1_vs_N(
 
     imgs_1_chw = torch.stack(imgs_1, dim=0)
     imgs_N_chw = torch.stack(imgs_N, dim=0)
-    return imgs_1_chw, imgs_N_chw
+    imgs_dmd_chw = torch.stack(imgs_dmd, dim=0)
+    return imgs_1_chw, imgs_N_chw, imgs_dmd_chw
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Compare EDM 1-step vs N-step (same noise, same class) via t-SNE distances."
+        description="Compare EDM 1-step vs N-step vs DMD (same noise, same class) via t-SNE distances."
     )
     parser.add_argument("--edm_checkpoint", type=str, required=True)
+    parser.add_argument("--dmd_checkpoint", type=str, required=True)
     parser.add_argument(
         "--class_index",
         type=int,
@@ -207,18 +231,21 @@ def main():
     class_dir = os.path.join(args.output_dir, class_dir_name)
     os.makedirs(class_dir, exist_ok=True)
 
-    edm1_dir = os.path.join(class_dir, "edm_1step_images")
-    edmN_dir = os.path.join(class_dir, "edm_Nstep_images")
+    edm1_dir = os.path.join(class_dir, "edm_1_images")
+    edmN_dir = os.path.join(class_dir, "edm_N_images")
+    dmd_dir = os.path.join(class_dir, "dmd_images")
     os.makedirs(edm1_dir, exist_ok=True)
     os.makedirs(edmN_dir, exist_ok=True)
+    os.makedirs(dmd_dir, exist_ok=True)
 
     print(f"Device: {device}")
     print(f"Class {args.class_index}: {class_name}")
-    print(f"EDM 1-step vs {args.steps_N}-step, seeds={args.num_seeds}")
+    print(f"EDM 1-step, EDM {args.steps_N}-step, DMD (same noise), seeds={args.num_seeds}")
 
-    # 1) Generate 1-step vs N-step EDM image pairs (save each image immediately)
-    imgs_1_chw, imgs_N_chw = generate_edm_1_vs_N(
+    # 1) Generate 1-step, N-step EDM, and DMD (all same noise seeds)
+    imgs_1_chw, imgs_N_chw, imgs_dmd_chw = generate_edm_1_vs_N_vs_DMD(
         args.edm_checkpoint,
+        args.dmd_checkpoint,
         args.class_index,
         args.num_seeds,
         args.master_seed,
@@ -226,6 +253,7 @@ def main():
         device,
         edm1_dir=edm1_dir,
         edmN_dir=edmN_dir,
+        dmd_dir=dmd_dir,
     )
 
     # 2) ResNet-50 features
@@ -240,19 +268,25 @@ def main():
     feats_N = compute_resnet_features_batched(
         imgs_N_chw, feat_extractor, device, batch_size=args.batch_size_features, desc=f"EDM {args.steps_N}-step"
     )
+    print("Extracting features for DMD images...")
+    feats_dmd = compute_resnet_features_batched(
+        imgs_dmd_chw, feat_extractor, device, batch_size=args.batch_size_features, desc="DMD"
+    )
 
     np.savez_compressed(os.path.join(class_dir, "edm1_feats.npz"), features=feats_1.astype(np.float32))
     np.savez_compressed(os.path.join(class_dir, "edmN_feats.npz"), features=feats_N.astype(np.float32))
+    np.savez_compressed(os.path.join(class_dir, "dmd_feats.npz"), features=feats_dmd.astype(np.float32))
 
-    # 3) t-SNE on concatenated features
-    print("Running t-SNE on concatenated features...")
-    all_feats = np.concatenate([feats_1, feats_N], axis=0)
+    # 3) t-SNE on concatenated features (all three)
+    print("Running t-SNE on concatenated features (EDM 1, EDM N, DMD)...")
+    all_feats = np.concatenate([feats_1, feats_N, feats_dmd], axis=0)
     n1 = feats_1.shape[0]
     nN = feats_N.shape[0]
+    n_dmd = feats_dmd.shape[0]
 
     tsne = TSNE(
         n_components=2,
-        perplexity=min(30, max(5, (n1 + nN) // 10)),
+        perplexity=min(30, max(5, (n1 + nN + n_dmd) // 10)),
         learning_rate=200,
         init="pca",
         random_state=0,
@@ -262,9 +296,10 @@ def main():
 
     tsne1 = all_2d[:n1]
     tsneN = all_2d[n1 : n1 + nN]
+    tsne_dmd = all_2d[n1 + nN :]
 
     # 4) Distance distribution between 1-step and N-step points (paired by seed)
-    min_pairs = min(n1, nN)
+    min_pairs = min(n1, nN, n_dmd)
     diffs = tsne1[:min_pairs] - tsneN[:min_pairs]
     dists = np.linalg.norm(diffs, axis=1)
 

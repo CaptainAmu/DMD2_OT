@@ -1,0 +1,42 @@
+Running t-SNE EDM vs DMD analysis...
+  Class index: 248
+  Num seeds: 500
+  Master seed: 42
+  EDM steps: 256, S_churn=0
+  LMDB path: model_checkpoints/imagenet-64x64_lmdb
+[18:23:26] Device: cuda
+[18:23:26] Class 248: husky
+[18:23:26] EDM 256-step, S_churn=0.0, seeds=500
+[18:23:26] STAGE 1/5 ▸ Building ResNet-50 feature extractor
+[18:23:28] STAGE 2/5 ▸ Background scan – collecting training features for target class
+[18:23:28]   Label scan over 1281167 entries to find class 248 indices
+[18:23:30]   Found 1300 training images for class 248
+[18:23:33] Background scan done – found 1300 training images for class 248
+[18:23:33] Saved training features to ./comparison_output/tsne_edm_vs_dmd/248_husky/extrct_training_feats.npz
+[18:23:33] STAGE 3/5 ▸ DMD + EDM sample generation
+[18:23:33] Loading DMD student...
+[18:23:38] Generating DMD images (1-step)...
+[18:23:53] Loading EDM teacher...
+[18:23:55] Generating EDM 1-step images...
+[18:24:12] Generating EDM 256-step Heun images (S_churn=0.0)...
+[20:23:13] STAGE 4/5 ▸ ResNet feature extraction for DMD + EDM N + EDM 1 samples
+[20:23:15] Saved DMD features to ./comparison_output/tsne_edm_vs_dmd/248_husky/extrct_dmd_feats.npz
+[20:23:15] Saved EDM N-step features to ./comparison_output/tsne_edm_vs_dmd/248_husky/extrct_edm_N_feats.npz
+[20:23:15] Saved EDM 1-step features to ./comparison_output/tsne_edm_vs_dmd/248_husky/extrct_edm_1_feats.npz
+[20:23:15] STAGE 5/5 ▸ t-SNE computation + visualization
+[20:23:15]   t-SNE input: 1300 bg + 500 EDM_N + 500 EDM_1 + 500 DMD = 2800 points
+[t-SNE] Computing 91 nearest neighbors...
+[t-SNE] Indexed 2800 samples in 0.002s...
+[t-SNE] Computed neighbors for 2800 samples in 0.816s...
+[t-SNE] Computed conditional probabilities for sample 1000 / 2800
+[t-SNE] Computed conditional probabilities for sample 2000 / 2800
+[t-SNE] Computed conditional probabilities for sample 2800 / 2800
+[t-SNE] Mean sigma: 1.916282
+[t-SNE] KL divergence after 250 iterations with early exaggeration: 76.422684
+[t-SNE] KL divergence after 1000 iterations: 2.015868
+[20:23:32] Average EDM_N–DMD distance (N=500): 21.7076
+[20:23:32] Average EDM_1–DMD distance (N=500): 76.3051
+[20:23:32] Building figure...
+[20:23:32] Saved t-SNE figure to ./comparison_output/tsne_edm_vs_dmd/248_husky/t_SNE.png
+[20:23:32] All done.
+Done. Check ./comparison_output/tsne_edm_vs_dmd/248/t_SNE.png

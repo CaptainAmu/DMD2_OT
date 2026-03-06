@@ -18,6 +18,7 @@ mkdir -p logs comparison_output/tsne_edm_1_vs_N
 
 PYTHON=/slurm-storage/shucli/.conda/envs/dmd2_ot/bin/python
 EDM_CKPT=model_checkpoints/edm-imagenet-64x64-cond-adm.pkl
+DMD_CKPT=model_checkpoints/pytorch_model.bin
 
 # Target class (e.g. 207 = golden retriever).
 CLASS_INDEX=207
@@ -33,14 +34,16 @@ STEPS_N=256
 
 OUTPUT_DIR=./comparison_output/tsne_edm_1_vs_N
 
-echo "Running EDM 1-step vs N-step t-SNE analysis..."
+echo "Running EDM 1-step / EDM N-step / DMD t-SNE analysis (same noise seeds)..."
 echo "  Class index: ${CLASS_INDEX}"
 echo "  Num seeds: ${NUM_SEEDS}"
 echo "  Master seed: ${MASTER_SEED}"
 echo "  N-step: ${STEPS_N}"
+echo "  Output: edm_1_images / edm_N_images / dmd_images"
 
 srun -u $PYTHON -u demo/tsne_edm_1_vs_N_imagenet.py \
     --edm_checkpoint $EDM_CKPT \
+    --dmd_checkpoint $DMD_CKPT \
     --class_index $CLASS_INDEX \
     --num_seeds $NUM_SEEDS \
     --master_seed $MASTER_SEED \

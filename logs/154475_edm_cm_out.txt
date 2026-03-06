@@ -1,0 +1,16 @@
+Running EDM 1-step / EDM N-step / CM generation (same noise seeds)...
+  Class index: 248
+  Num seeds: 500
+  Master seed: 42
+  EDM N-step: 256, S_churn=0
+  Output: ./comparison_output/edm_vs_cm (edm_1_images / edm_N_images / cm_images)
+Class 248: husky
+Generating 500 images per model with shared noise seeds
+Output: ./comparison_output/edm_vs_cm/248_husky
+Loading EDM teacher...
+Loading ConsistencyModelPipeline...
+Done. Saved to ./comparison_output/edm_vs_cm/248_husky
+  EDM 1-step: ./comparison_output/edm_vs_cm/248_husky/edm_1_images
+  EDM N-step: ./comparison_output/edm_vs_cm/248_husky/edm_N_images
+  CM:         ./comparison_output/edm_vs_cm/248_husky/cm_images
+Done. Check ./comparison_output/edm_vs_cm/248_*/edm_1_images, edm_N_images, cm_images

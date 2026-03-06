@@ -28,7 +28,7 @@ IMAGENET_LMDB=model_checkpoints/imagenet-64x64_lmdb
 CLASS_INDEX=248
 
 # Number of shared noise seeds.
-NUM_SEEDS=1000
+NUM_SEEDS=500
 
 # Master RNG seed for generating the per-sample noise seeds.
 MASTER_SEED=42
