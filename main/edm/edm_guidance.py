@@ -91,10 +91,13 @@ class EDMGuidance(nn.Module):
 
             timestep_sigma = self.karras_sigmas[timesteps]
             
+            # xtilde = G(z) + sigmat * noise
             noisy_latents = latents + timestep_sigma.reshape(-1, 1, 1, 1) * noise
 
+            # xhatreal = D_real(xtilde, sigmat, y)
             pred_real_image = self.real_unet(noisy_latents, timestep_sigma, labels)
 
+            # xhatfake = D_fake(xtilde, sigmat, y)
             pred_fake_image = self.fake_unet(
                 noisy_latents, timestep_sigma, labels
             )
@@ -154,7 +157,7 @@ class EDMGuidance(nn.Module):
         # weight_schedule karras 
         weights = snrs + 1.0 / self.sigma_data**2
 
-        target = latents 
+        target = latents # Set the x0 = Gtheta(z) as the targets.
 
         loss_fake = torch.mean(
             weights * (fake_x0_pred - target)**2
