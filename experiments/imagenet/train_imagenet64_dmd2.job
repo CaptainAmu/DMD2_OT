@@ -1,0 +1,84 @@
+#!/bin/bash
+#SBATCH -N 1
+#SBATCH --job-name=dmd2_imagenet64
+#SBATCH --output=/slurm-storage/shucli/PROJECT_FOLDER/DMD2_OT/experiments/imagenet/joblogs/%j_imagenet64_out.txt
+#SBATCH --error=/slurm-storage/shucli/PROJECT_FOLDER/DMD2_OT/experiments/imagenet/joblogs/%j_imagenet64_err.txt
+#SBATCH --time=120:00:00
+#SBATCH --mem=256000
+#SBATCH --gres=gpu:1
+#SBATCH --partition=normal
+#SBATCH --qos=long
+
+set -euo pipefail
+
+export PYTHONNOUSERSITE=1
+
+DMD2_OT_ROOT="${DMD2_OT_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
+cd "$DMD2_OT_ROOT"
+export PYTHONPATH="${DMD2_OT_ROOT}:${PYTHONPATH:-}"
+
+CHECKPOINT_PATH="${CHECKPOINT_PATH:-/slurm-storage/shucli/PROJECT_FOLDER/DMD2_OT/checkpoints_data}"
+: "${WANDB_ENTITY:?}"
+: "${WANDB_PROJECT:?}"
+
+PYTHON="${PYTHON:-python}"
+
+if [ -n "${SLURM_GPUS_ON_NODE:-}" ]; then
+  NPROC="${NPROC:-$SLURM_GPUS_ON_NODE}"
+elif [ -n "${CUDA_VISIBLE_DEVICES:-}" ]; then
+  _ng=$(echo "$CUDA_VISIBLE_DEVICES" | tr ',' '\n' | grep -cve '^$' || true)
+  NPROC="${NPROC:-${_ng:-1}}"
+else
+  NPROC="${NPROC:-7}"
+fi
+if [ -z "${CUDA_VISIBLE_DEVICES:-}" ]; then
+  export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
+fi
+
+RUN_NAME="${RUN_NAME:-imagenet_gan_classifier_genloss3e-3_diffusion1000_lr2e-6_scratch}"
+
+for f in \
+  "$CHECKPOINT_PATH/edm-imagenet-64x64-cond-adm.pkl" \
+  "$CHECKPOINT_PATH/imagenet-64x64_lmdb" \
+  ; do
+  if [ ! -e "$f" ]; then
+    echo "Missing: $f"
+    echo "Run: bash scripts/download_imagenet.sh $CHECKPOINT_PATH"
+    exit 1
+  fi
+done
+
+echo "DMD2_OT_ROOT=$DMD2_OT_ROOT"
+echo "CHECKPOINT_PATH=$CHECKPOINT_PATH"
+echo "CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-unset} NPROC=$NPROC"
+
+exec "$PYTHON" -m torch.distributed.run \
+  --nproc_per_node "$NPROC" \
+  --nnodes 1 \
+  main/edm/train_edm.py \
+  --generator_lr 2e-6 \
+  --guidance_lr 2e-6 \
+  --train_iters 10000000 \
+  --output_path "$CHECKPOINT_PATH/${RUN_NAME}" \
+  --batch_size 40 \
+  --initialie_generator \
+  --log_iters 500 \
+  --resolution 64 \
+  --label_dim 1000 \
+  --dataset_name "imagenet" \
+  --seed 10 \
+  --model_id "$CHECKPOINT_PATH/edm-imagenet-64x64-cond-adm.pkl" \
+  --wandb_iters 100 \
+  --wandb_entity "$WANDB_ENTITY" \
+  --wandb_project "$WANDB_PROJECT" \
+  --use_fp16 \
+  --wandb_name "$RUN_NAME" \
+  --real_image_path "$CHECKPOINT_PATH/imagenet-64x64_lmdb" \
+  --dfake_gen_update_ratio 5 \
+  --cls_loss_weight 1e-2 \
+  --gan_classifier \
+  --gen_cls_loss_weight 3e-3 \
+  --diffusion_gan \
+  --diffusion_gan_max_timestep 1000 \
+  --delete_ckpts \
+  --max_checkpoint 500

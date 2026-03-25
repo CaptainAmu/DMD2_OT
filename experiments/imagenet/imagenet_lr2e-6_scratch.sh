@@ -2,7 +2,7 @@ export CHECKPOINT_PATH=$1
 export WANDB_ENTITY=$2
 export WANDB_PROJECT=$3
 
-CUDA_VISIBLE_DEVICES=1,2,3,4,5,6,7 torchrun --nproc_per_node 7 --nnodes 1 main/train_edm.py \
+CUDA_VISIBLE_DEVICES=1,2,3,4,5,6,7 torchrun --nproc_per_node 7 --nnodes 1 main/edm/train_edm.py \
     --generator_lr 2e-6  \
     --guidance_lr 2e-6  \
     --train_iters 10000000 \
