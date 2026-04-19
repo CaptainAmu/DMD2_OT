@@ -1,4 +1,9 @@
-# Improved Distribution Matching Distillation for Fast Image Synthesis [[Huggingface Repo](https://huggingface.co/tianweiy/DMD2)][[ComfyUI](https://gist.github.com/comfyanonymous/fcce4ced378f74f4c46026b134faf27a)][[Colab](https://colab.research.google.com/drive/1iGk7IW2WosophOVYpdW_KZGIfYpATOm7?usp=sharing)]
+# Investigating reproducibility phenomenon in distribution-matching distillation
+
+
+
+
+## Original: Improved Distribution Matching Distillation for Fast Image Synthesis [[Huggingface Repo](https://huggingface.co/tianweiy/DMD2)][[ComfyUI](https://gist.github.com/comfyanonymous/fcce4ced378f74f4c46026b134faf27a)][[Colab](https://colab.research.google.com/drive/1iGk7IW2WosophOVYpdW_KZGIfYpATOm7?usp=sharing)]
 
 Few-step Text-to-Image Generation.
 
